@@ -177,5 +177,5 @@ Este projeto foi desenvolvido com foco em:
 - Boas práticas de arquitetura Spring
 
 ## 👨‍💻 Autor
-
-Projeto desenvolvido para fins acadêmicos utilizando boas práticas de desenvolvimento backend com Spring Boot.
+- Davi Tavares
+- Projeto desenvolvido para fins acadêmicos utilizando boas práticas de desenvolvimento backend com Spring Boot.
