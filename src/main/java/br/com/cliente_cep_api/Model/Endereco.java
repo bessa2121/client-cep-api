@@ -2,6 +2,10 @@ package br.com.cliente_cep_api.Model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+
+import java.time.LocalDateTime;
 
 @Entity
 public class Endereco {
@@ -16,6 +20,20 @@ public class Endereco {
     private String uf;
     private String ibge;
     private String ddd;
+
+    private LocalDateTime criadoEm;
+    private LocalDateTime atualizadoEm;
+
+    @PrePersist
+    protected void aoCriar() {
+        criadoEm = LocalDateTime.now();
+        atualizadoEm = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void aoAtualizar() {
+        atualizadoEm = LocalDateTime.now();
+    }
 
     public String getCep() {
         return cep;
@@ -79,5 +97,21 @@ public class Endereco {
 
     public void setDdd(String ddd) {
         this.ddd = ddd;
+    }
+
+    public LocalDateTime getCriadoEm() {
+        return criadoEm;
+    }
+
+    public void setCriadoEm(LocalDateTime criadoEm) {
+        this.criadoEm = criadoEm;
+    }
+
+    public LocalDateTime getAtualizadoEm() {
+        return atualizadoEm;
+    }
+
+    public void setAtualizadoEm(LocalDateTime atualizadoEm) {
+        this.atualizadoEm = atualizadoEm;
     }
 }

@@ -1,27 +1,30 @@
 package br.com.cliente_cep_api.Dto;
 
-public class EnderecoResponse {
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
-    private String cep;
+public class EnderecoUpdateRequest {
+
+    @NotBlank(message = "logradouro é obrigatório")
     private String logradouro;
+
     private String complemento;
+
+    @NotBlank(message = "bairro é obrigatório")
     private String bairro;
+
+    @NotBlank(message = "localidade é obrigatória")
     private String localidade;
+
+    @NotBlank(message = "uf é obrigatória")
+    @Size(min = 2, max = 2, message = "uf deve ter 2 caracteres")
+    @Pattern(regexp = "[A-Za-z]{2}", message = "uf deve conter apenas letras")
     private String uf;
+
     private String ibge;
+
     private String ddd;
-
-    // O ViaCEP responde HTTP 200 com {"erro": true} quando o CEP não existe,
-    // Ao invés de um 404. Precisamos capturar esse campo para tratar como erro de fato.
-    private Boolean erro;
-
-    public String getCep() {
-        return cep;
-    }
-
-    public void setCep(String cep) {
-        this.cep = cep;
-    }
 
     public String getLogradouro() {
         return logradouro;
@@ -77,13 +80,5 @@ public class EnderecoResponse {
 
     public void setDdd(String ddd) {
         this.ddd = ddd;
-    }
-
-    public Boolean getErro() {
-        return erro;
-    }
-
-    public void setErro(Boolean erro) {
-        this.erro = erro;
     }
 }

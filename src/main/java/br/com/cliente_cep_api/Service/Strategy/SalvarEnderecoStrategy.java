@@ -17,4 +17,16 @@ public class SalvarEnderecoStrategy implements EnderecoStrategy {
     public Endereco salvar(Endereco endereco) {
         return repository.save(endereco);
     }
+
+    @Override
+    public Endereco atualizar(Endereco existente, Endereco dadosNovos) {
+        existente.setLogradouro(dadosNovos.getLogradouro());
+        existente.setComplemento(dadosNovos.getComplemento());
+        existente.setBairro(dadosNovos.getBairro());
+        existente.setLocalidade(dadosNovos.getLocalidade());
+        existente.setUf(dadosNovos.getUf());
+        existente.setIbge(dadosNovos.getIbge());
+        existente.setDdd(dadosNovos.getDdd());
+        return repository.save(existente);
+    }
 }

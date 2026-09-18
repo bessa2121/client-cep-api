@@ -1,13 +1,14 @@
 # 📌 Cliente CEP API
 
-API REST desenvolvida com Spring Boot para consumo do WebService ViaCEP, persistindo dados em banco H2 e aplicando padrões de projeto (Singleton, Strategy e Facade).
+API REST desenvolvida com Spring Boot para consumo do WebService ViaCEP, persistindo dados em banco H2 e aplicando padrões de projeto (Singleton, Strategy e Facade). CRUD completo, com verbos HTTP corretos, códigos de status apropriados e tratamento de erros centralizado.
 
 ## 🚀 Tecnologias Utilizadas
 
 - **Java 21**
-- **Spring Boot 3.3.x**
+- **Spring Boot 3.3.5**
 - **Spring Web**
 - **Spring Data JPA**
+- **Bean Validation** (spring-boot-starter-validation)
 - **H2 Database**
 - **OpenFeign**
 - **OpenAPI / Swagger**
@@ -16,16 +17,13 @@ API REST desenvolvida com Spring Boot para consumo do WebService ViaCEP, persist
 ## 🧠 Padrões de Projeto Aplicados
 
 ### ✔ Singleton
-
 Os serviços são gerenciados pelo container do Spring como Singleton por padrão.
 
 ### ✔ Strategy
-
-Permite definir diferentes estratégias para salvar ou manipular endereços sem alterar a lógica principal.
+`EnderecoStrategy` define o contrato de persistência (`salvar` / `atualizar`); `SalvarEnderecoStrategy` é a implementação atual, podendo ser trocada sem alterar o Facade.
 
 ### ✔ Facade
-
-A classe `EnderecoFacade` simplifica o fluxo entre Controller, Feign Client e Strategy.
+A classe `EnderecoFacade` concentra o fluxo entre Controller, Feign Client (ViaCEP), Strategy e Repository.
 
 ## 📂 Estrutura do Projeto
 
@@ -36,44 +34,81 @@ flowchart TD
     B --> D[Strategy]
     D --> E[Repository]
     E --> F[(H2 Database)]
+    B --> G[GlobalExceptionHandler]
 ```
 
-## 🔄 Fluxo da Aplicação
+## 🌐 Endpoints Disponíveis (CRUD completo)
 
-```mermaid
-sequenceDiagram
-    participant Cliente
-    participant Controller
-    participant Facade
-    participant ViaCEP
-    participant Banco
+| Verbo  | Rota              | Descrição                                                   | Sucesso | Erros                        |
+|--------|-------------------|---------------------------------------------------------------|---------|-------------------------------|
+| POST   | `/enderecos/{cep}`| Consulta o ViaCEP e **cria** o endereço localmente            | 201     | 400, 404, 409, 503            |
+| GET    | `/enderecos/{cep}`| Busca um endereço **já cadastrado** localmente (idempotente)  | 200     | 400, 404                      |
+| GET    | `/enderecos`      | Lista todos os endereços cadastrados (paginado: `?page=&size=&sort=`) | 200 | -                        |
+| PUT    | `/enderecos/{cep}`| Atualiza manualmente os dados de um endereço existente         | 200     | 400, 404                      |
+| DELETE | `/enderecos/{cep}`| Remove um endereço cadastrado                                  | 204     | 400, 404                      |
 
-    Cliente->>Controller: GET /enderecos/{cep}
-    Controller->>Facade: buscarESalvar(cep)
-    Facade->>ViaCEP: Consulta CEP
-    ViaCEP-->>Facade: Retorna dados
-    Facade->>Banco: Salva endereço
-    Banco-->>Facade: Confirma persistência
-    Facade-->>Controller: Retorna endereço
-    Controller-->>Cliente: JSON Response
+> `GET` é seguro/idempotente e nunca grava dados — a criação (efeito colateral) só acontece via `POST`, seguindo a semântica HTTP correta.
+
+**Exemplos:**
+```
+POST   http://localhost:8080/enderecos/01001000
+GET    http://localhost:8080/enderecos/01001000
+GET    http://localhost:8080/enderecos?page=0&size=10&sort=localidade
+PUT    http://localhost:8080/enderecos/01001000
+DELETE http://localhost:8080/enderecos/01001000
 ```
 
-## 🌐 Endpoint Disponível
+**Corpo para PUT:**
+```json
+{
+  "logradouro": "Praça da Sé",
+  "complemento": "lado ímpar",
+  "bairro": "Sé",
+  "localidade": "São Paulo",
+  "uf": "SP",
+  "ibge": "3550308",
+  "ddd": "11"
+}
+```
 
-### Buscar e salvar endereço pelo CEP
+**Resposta padrão (200/201):**
+```json
+{
+  "cep": "01001000",
+  "logradouro": "Praça da Sé",
+  "bairro": "Sé",
+  "localidade": "São Paulo",
+  "uf": "SP",
+  "ibge": "3550308",
+  "ddd": "11",
+  "criadoEm": "2026-09-17T10:00:00",
+  "atualizadoEm": "2026-09-17T10:00:00"
+}
+```
 
-```
-GET /enderecos/{cep}
+**Resposta padrão de erro (ex.: 404):**
+```json
+{
+  "timestamp": "2026-09-17T10:00:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Nenhum endereço cadastrado para o CEP 99999999",
+  "path": "/enderecos/99999999"
+}
 ```
 
-**Exemplo:**
-```
-GET http://localhost:8080/enderecos/01001000
-```
+## ⚠️ Tratamento de Erros
+
+Centralizado em `GlobalExceptionHandler` (`@RestControllerAdvice`), mapeando cada exceção de domínio para o status HTTP correto:
+
+- `CepInvalidoException` → **400** (formato de CEP inválido)
+- `MethodArgumentNotValidException` → **400** (falha de validação no corpo do PUT, com lista de `details`)
+- `RecursoNaoEncontradoException` → **404** (CEP não cadastrado localmente ou inexistente no ViaCEP)
+- `EnderecoJaExisteException` → **409** (tentativa de `POST` para um CEP já cadastrado)
+- `ViaCepIndisponivelException` → **503** (falha de comunicação com o ViaCEP)
+- Qualquer outra exceção → **500**, sem vazar stacktrace para o cliente
 
 ## 📖 Documentação Swagger
-
-Após iniciar a aplicação:
 
 ```
 http://localhost:8080/swagger-ui.html
@@ -81,13 +116,9 @@ http://localhost:8080/swagger-ui.html
 
 ## 🗄 Banco de Dados H2
 
-Console disponível em:
-
 ```
 http://localhost:8080/h2-console
 ```
-
-**Configuração:**
 
 - **JDBC URL:** `jdbc:h2:mem:testdb`
 - **User:** `sa`
@@ -103,78 +134,27 @@ mvn spring-boot:run
 
 Ou executar pela IDE.
 
-## 📌 Exemplo de Resposta
+## 🧪 Testes
 
-```json
-{
-  "cep": "01001-000",
-  "logradouro": "Praça da Sé",
-  "bairro": "Sé",
-  "localidade": "São Paulo",
-  "uf": "SP",
-  "ibge": "3550308",
-  "ddd": "11"
-}
+Testes de integração do Controller (`EnderecoControllerTest`, via `@WebMvcTest` + `MockMvc`) cobrindo os cinco endpoints e os principais cenários de erro (404, 400 de validação).
+
+```bash
+mvn test
 ```
 
 ## 🔮 Roadmap Futuro (Melhorias Planejadas)
 
-Este projeto poderá evoluir para incluir:
-
-### 🔐 Segurança
-- Autenticação com Spring Security
-- JWT
-- Controle de acesso por roles
-
-### 📦 Cache
-- Cache com Redis
-- Evitar chamadas repetidas ao ViaCEP
-
-### 🗃 Banco Persistente
-- Migração para PostgreSQL
-- Versionamento com Flyway
-
-### 📊 Monitoramento
-- Spring Boot Actuator
-- Logs estruturados
-- Métricas com Prometheus
-
-### 📄 Documentação Avançada
-- Versionamento de API
-- Padrão RESTful completo
-
-### 🧪 Testes
-- Testes unitários com JUnit
-- Testes de integração
-- Testcontainers
-
-### 📚 Funcionalidades Extras
-- Buscar todos os CEPs já consultados
-- Deletar CEP salvo
-- Atualizar endereço manualmente
-- Filtro por cidade ou estado
-- Paginação
-- Histórico de consultas
-
-## 🏗 Possível Evolução Arquitetural
-
-```mermaid
-flowchart LR
-    A[API REST] --> B[Service Layer]
-    B --> C[Cache Layer]
-    B --> D[Database PostgreSQL]
-    B --> E[External APIs]
-    B --> F[Security Layer]
-```
+- 🔐 Autenticação com Spring Security / JWT
+- 📦 Cache com Redis (evitar chamadas repetidas ao ViaCEP)
+- 🗃 Migração para PostgreSQL + Flyway
+- 📊 Spring Boot Actuator, logs estruturados, métricas
+- 🔗 HATEOAS (links de navegação nas respostas)
+- 🔢 Versionamento de API (`/v1/...`)
+- 🧪 Testcontainers para testes de integração com banco real
 
 ## 🎯 Objetivo Acadêmico
 
-Este projeto foi desenvolvido com foco em:
-
-- Aplicação de padrões de projeto
-- Integração com WebService externo
-- Organização em camadas
-- Boas práticas de arquitetura Spring
+Projeto desenvolvido com foco em: aplicação de padrões de projeto, integração com WebService externo, organização em camadas, boas práticas de API RESTful (verbos e status HTTP corretos, DTOs desacoplados da entidade, tratamento de erros centralizado, validação de entrada).
 
 ## 👨‍💻 Autor
 - Davi Tavares
